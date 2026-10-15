@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interaktiv MRP</title>
+    <link rel="stylesheet" href="style.css?v=2">
+</head>
+
+<body>
+
+<header>
+    <div class="header-text">
+        <h1>Interaktiv huvud- och materialplanering</h1>
+        <p>Prognos → huvudplan → BOM-explosion → materialplaner i lägsta-nivå-ordning.</p>
+    </div>
+
+    <button id="resetAll" class="ghost">Ny uppgift</button>
+</header>
+
+<nav class="wizard" aria-label="Arbetsgång">
+    <button class="wizard-step active" data-page="pagePeriods">
+        <span class="step-number">1</span> Perioder &amp; behov
+    </button>
+    <button class="wizard-step" data-page="pageBom">
+        <span class="step-number">2</span> Produktstruktur
+    </button>
+    <button class="wizard-step" data-page="pageArticles">
+        <span class="step-number">3</span> Artikeldata
+    </button>
+    <button class="wizard-step" data-page="pagePlans">
+        <span class="step-number">4</span> Planer
+    </button>
+</nav>
+
+<main>
+
+    <!-- 1. Perioder & behov -->
+    <section id="pagePeriods" class="page active">
+        <div class="card">
+            <h2>Perioder &amp; behov</h2>
+
+            <div class="field narrow">
+                <label for="numberOfPeriods">Antal perioder</label>
+                <input id="numberOfPeriods" type="number" min="3" max="24" value="8">
+            </div>
+
+            <div class="field">
+                <label>Utgångspunkt</label>
+                <div class="segmented" role="group" aria-label="Utgångspunkt">
+                    <button id="sourceForecast" class="active">Prognos – huvudplanen beräknas</button>
+                    <button id="sourceMps">Färdig huvudplan – bara MRP</button>
+                </div>
+            </div>
+
+            <h3 id="demandHeading">Prognos för slutprodukten</h3>
+
+            <div class="table-wrapper">
+                <table class="input-table" id="forecastTable"></table>
+            </div>
+
+            <div class="note" id="demandNote"></div>
+        </div>
+
+        <div class="page-nav">
+            <span></span>
+            <button class="primary" data-goto="pageBom">Nästa: Produktstruktur →</button>
+        </div>
+    </section>
+
+    <!-- 2. Produktstruktur -->
+    <section id="pageBom" class="page">
+        <div class="card">
+            <h2>Produktstruktur (BOM)</h2>
+
+            <div id="bomEditor"></div>
+
+            <div class="note">
+                Skapa slutprodukten och lägg till komponenter med
+                <b>+ Komponent</b>. En komponent som redan finns kan
+                läggas till på flera ställen genom att ange samma
+                artikelnummer. Den beräknas då på sin lägsta nivå.
+            </div>
+        </div>
+
+        <div class="page-nav">
+            <button class="secondary" data-goto="pagePeriods">← Tillbaka</button>
+            <button class="primary" data-goto="pageArticles">Nästa: Artikeldata →</button>
+        </div>
+    </section>
+
+    <!-- 3. Artikeldata -->
+    <section id="pageArticles" class="page">
+        <div class="card">
+            <h2>Artikeldata</h2>
+
+            <div id="articleEditor"></div>
+        </div>
+
+        <div class="page-nav">
+            <button class="secondary" data-goto="pageBom">← Tillbaka</button>
+            <button class="primary" data-goto="pagePlans">Beräkna planer →</button>
+        </div>
+    </section>
+
+    <!-- 4. Planer -->
+    <section id="pagePlans" class="page">
+
+        <div id="planErrors"></div>
+
+        <div id="planArea">
+            <div class="control-panel card">
+
+                <div class="control-row">
+                    <div class="segmented" role="group" aria-label="Visningsläge">
+                        <button id="modeOne" class="active">En tabell i taget</button>
+                        <button id="modeAll">Alla tabeller</button>
+                    </div>
+
+                    <div id="articleTabs" class="article-tabs"></div>
+                </div>
+
+                <div class="control-row">
+                    <div class="player">
+                        <button id="stepFirst" class="secondary" title="Börja om">⏮</button>
+                        <button id="stepPrevPeriod" class="secondary" title="Föregående period (Shift + ←)">⏪</button>
+                        <button id="stepPrev" class="secondary" title="Föregående steg (←)">◀ Steg</button>
+                        <button id="playPause" class="primary" title="Spela / pausa (mellanslag)">▶ Spela</button>
+                        <button id="stepNext" class="primary" title="Nästa steg (→)">Steg ▶</button>
+                        <button id="stepNextPeriod" class="secondary" title="Slutför perioden (Shift + →)">⏩</button>
+                        <button id="stepLast" class="secondary" title="Visa allt">Visa allt</button>
+                    </div>
+
+                    <label class="speed">
+                        Hastighet
+                        <input id="speed" type="range" min="1" max="10" value="5">
+                    </label>
+
+                    <span id="stepCounter" class="badge"></span>
+                </div>
+
+                <div id="explanation" class="explanation"></div>
+
+                <div class="legend">
+                    <span><i class="legend-color cell-current"></i>Beräknas nu</span>
+                    <span><i class="legend-color cell-ref"></i>Används i beräkningen</span>
+                    <span><i class="legend-color cell-recent"></i>Ifyllt denna period</span>
+                    <span><i class="legend-color cell-warning"></i>Under säkerhetslager</span>
+                    <span class="small">Tangenter: ← → steg, Shift + ← → period, mellanslag spela/pausa</span>
+                </div>
+            </div>
+
+            <div id="planOutput"></div>
+        </div>
+
+        <div class="page-nav">
+            <button class="secondary" data-goto="pageArticles">← Tillbaka</button>
+            <button class="secondary" onclick="window.print()">Skriv ut</button>
+        </div>
+    </section>
+
+</main>
+
+<script src="app.js?v=2"></script>
+
+</body>
+</html>
